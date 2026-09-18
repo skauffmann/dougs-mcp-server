@@ -16,6 +16,13 @@ class Settings(BaseSettings):
 
     dougs_email: str = Field(..., description="Dougs account email used to log in.")
     dougs_password: SecretStr = Field(..., description="Dougs account password.")
+    dougs_totp_secret: SecretStr | None = Field(
+        None,
+        description=(
+            "Authenticator-app secret (base32, or the otpauth:// URI) to pass Dougs' MFA "
+            "on login. Required when the account has MFA enabled."
+        ),
+    )
     dougs_base_url: str = Field("https://app.dougs.fr", description="Dougs API base URL.")
     dougs_company_id: int | None = Field(
         None,

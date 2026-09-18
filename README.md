@@ -16,6 +16,11 @@ It exposes tools over Dougs' internal API (`app.dougs.fr`) so an MCP client
   The session cookie is cached under `~/.cache/dougs-mcp/` (mode `600`) and
   reused across restarts — Dougs allows only 25 logins per hour and per account
   — then refreshed transparently on a `401`.
+- **MFA**: if the account has two-factor authentication, login answers
+  `mfaRequired` and the session stays unauthenticated until a code is verified
+  (`POST /auth/api/mfa/verify`). Enable the **authenticator app** factor in
+  Dougs and set `DOUGS_TOTP_SECRET`: the server then computes the code itself,
+  so it can log in unattended. Email codes cannot be automated.
 - **Base URL**: `https://app.dougs.fr`
 - **Company**: most tools act on a company id. It defaults to your preferred
   company — override per call with `company_id`, or pin one via
@@ -39,7 +44,12 @@ cp .env.example .env   # then fill in your credentials
 DOUGS_EMAIL=you@example.com
 DOUGS_PASSWORD=your-password
 # DOUGS_COMPANY_ID=12345   # optional; defaults to your preferred company
+# DOUGS_TOTP_SECRET=JBSWY3DPEHPK3PXP   # required if MFA is on; base32 secret or otpauth:// URI
 ```
+
+`DOUGS_TOTP_SECRET` is the `secret` parameter of the `otpauth://` link Dougs
+shows when you set up the authenticator app (the full link works too). Stored
+next to the password it is a second key to the account: keep `.env` private.
 
 ## Tools
 

@@ -10,6 +10,7 @@ from typing import Any
 import httpx
 
 from .config import Settings
+from .totp import parse_secret, totp
 
 # The operations endpoint caps a single page at 500 rows server-side.
 MAX_PAGE = 500
@@ -132,9 +133,38 @@ class DougsClient:
                 f"login failed with status {resp.status_code}: {_error_detail(resp)}"
             )
 
+        # With MFA on, login answers 200 but the session stays unauthenticated
+        # until a code is verified.
+        status = (self._json_or_none(resp) or {}).get("status")
+        if status == "mfaRequired":
+            await self._verify_mfa()
+        elif status == "ssoRequired":
+            raise DougsAuthError("this account signs in through SSO, which is not supported.")
+
         self._authenticated = True
         self._auth_gen += 1
         self._save_session()
+
+    async def _verify_mfa(self) -> None:
+        """Pass the MFA step with a TOTP code computed from the configured secret."""
+        if self._s.dougs_totp_secret is None:
+            raise DougsAuthError(
+                "login requires MFA. Enable the authenticator-app factor on the Dougs "
+                "account and set DOUGS_TOTP_SECRET (email codes cannot be automated)."
+            )
+        secret = parse_secret(self._s.dougs_totp_secret.get_secret_value())
+        try:
+            resp = await self._http.post(
+                "/auth/api/mfa/verify", json={"token": totp(secret), "type": "totp"}
+            )
+        except httpx.HTTPError as exc:
+            raise DougsAuthError(f"MFA request failed: {exc}") from exc
+        status = (self._json_or_none(resp) or {}).get("status") if resp.is_success else None
+        if status != "authenticated":
+            raise DougsAuthError(
+                f"MFA code rejected (status {resp.status_code}, {status or _error_detail(resp)}). "
+                "Check DOUGS_TOTP_SECRET and that the authenticator-app factor is enabled."
+            )
 
     async def _ensure_auth(self) -> None:
         if self._authenticated:
