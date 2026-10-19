@@ -5,6 +5,7 @@ import mimetypes
 from datetime import date, timedelta
 from pathlib import Path
 from typing import Any
+from uuid import UUID
 
 from fastmcp import FastMCP
 from pydantic import BaseModel, Field
@@ -533,7 +534,7 @@ async def list_sales_invoice_drafts(company_id: int | None = None) -> list[dict[
 
 
 @mcp.tool()
-async def get_sales_invoice_draft(draft_id: str, company_id: int | None = None) -> dict[str, Any]:
+async def get_sales_invoice_draft(draft_id: UUID, company_id: int | None = None) -> dict[str, Any]:
     """Read one sales invoice draft: client, dates, lines and server-computed totals."""
     client = _get_client()
     cid = await client.resolve_company_id(company_id)
@@ -578,7 +579,7 @@ async def create_sales_invoice_draft(
 
 @mcp.tool()
 async def update_sales_invoice_draft(
-    draft_id: str,
+    draft_id: UUID,
     lines: list[InvoiceLine] | None = None,
     invoice_date: str | None = None,
     due_in_days: int | None = None,
@@ -608,7 +609,7 @@ async def update_sales_invoice_draft(
 
 @mcp.tool()
 async def delete_sales_invoice_draft(
-    draft_id: str, company_id: int | None = None
+    draft_id: UUID, company_id: int | None = None
 ) -> dict[str, Any]:
     """Delete a sales invoice draft. Finalized invoices are out of reach of this tool."""
     client = _get_client()
@@ -616,7 +617,7 @@ async def delete_sales_invoice_draft(
     path = f"/companies/{cid}/sales-invoices-drafts/{draft_id}"
     await client.get(path)  # 404s unless this id is an existing draft
     await client.delete(path)
-    return {"deleted": draft_id}
+    return {"deleted": str(draft_id)}
 
 
 @mcp.tool()
