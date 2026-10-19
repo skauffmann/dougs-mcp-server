@@ -491,11 +491,15 @@ async def _find_invoice_client(client: DougsClient, cid: int, customer: str) -> 
         f"/companies/{cid}/sales-invoices-drafts/clients",
         params={"isBtoB": str(bool(chosen.get("isBtoB"))).lower(), "name": chosen.get("name")},
     )
+    siren = (chosen.get("siren") or "").replace(" ", "")
     for hit in hits or []:
-        if hit.get("clientId") and (
-            (chosen.get("siren") and hit.get("siren") == chosen.get("siren"))
-            or hit.get("name") == chosen.get("name")
-        ):
+        if not hit.get("clientId"):
+            continue
+        # With a SIREN, a same-name record of another company must not be picked.
+        if siren:
+            if (hit.get("siren") or "").replace(" ", "") == siren:
+                return hit
+        elif hit.get("name") == chosen.get("name"):
             return hit
     raise ValueError(f"no invoice client record found for customer '{chosen.get('name')}'")
 
