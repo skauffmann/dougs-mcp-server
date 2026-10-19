@@ -1,6 +1,7 @@
 """FastMCP server exposing Dougs accounting tools."""
 
 import asyncio
+import contextlib
 import mimetypes
 from datetime import date, timedelta
 from pathlib import Path
@@ -573,13 +574,19 @@ async def create_sales_invoice_draft(
     # Resolve the customer before creating anything, so a bad name leaves no empty draft.
     found = await _find_invoice_client(client, cid, customer)
     created = await client.post(f"/companies/{cid}/sales-invoices-drafts", json={})
-    draft_id = created["id"]
-    draft = await client.get(f"/companies/{cid}/sales-invoices-drafts/{draft_id}")
-    draft["clientData"] = _draft_client_data(found)
-    draft["subject"] = subject
-    draft["lines"] = [_draft_line(line) for line in lines]
-    _apply_dates(draft, invoice_date or date.today().isoformat(), due_in_days)
-    saved = await client.post(f"/companies/{cid}/sales-invoices-drafts/{draft_id}", json=draft)
+    path = f"/companies/{cid}/sales-invoices-drafts/{created['id']}"
+    try:
+        draft = await client.get(path)
+        draft["clientData"] = _draft_client_data(found)
+        draft["subject"] = subject
+        draft["lines"] = [_draft_line(line) for line in lines]
+        _apply_dates(draft, invoice_date or date.today().isoformat(), due_in_days)
+        saved = await client.post(path, json=draft)
+    except Exception:
+        # Don't leave the empty draft behind; the original error is the one to report.
+        with contextlib.suppress(Exception):
+            await client.delete(path)
+        raise
     return _draft_summary(client, cid, saved)
 
 
