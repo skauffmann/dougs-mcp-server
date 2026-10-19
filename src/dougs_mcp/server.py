@@ -353,12 +353,14 @@ class InvoiceLine(BaseModel):
     """One line of a sales invoice draft."""
 
     title: str = Field(description="Line label, e.g. 'Prestation de services'.")
-    quantity: float = Field(description="Quantity, e.g. a number of days.")
-    unit_amount: float = Field(description="Unit price, excluding VAT unless price_with_vat.")
+    quantity: float = Field(gt=0, description="Quantity, e.g. a number of days.")
+    unit_amount: float = Field(ge=0, description="Unit price, excluding VAT unless price_with_vat.")
     description: str | None = Field(None, description="Optional detail, e.g. 'Juin 2026'.")
     unit: str | None = Field(None, description="Optional unit label, e.g. 'jour', 'heure'.")
-    vat_rate: float = Field(0.2, description="VAT rate as a fraction: 0.2 = 20 %, 0 = exempt.")
-    discount: float = Field(0, description="Line discount, as a percentage.")
+    vat_rate: float = Field(
+        0.2, ge=0, le=1, description="VAT rate as a fraction: 0.2 = 20 %, 0 = exempt."
+    )
+    discount: float = Field(0, ge=0, le=100, description="Line discount, as a percentage.")
     price_with_vat: bool = Field(False, description="True if unit_amount includes VAT.")
 
 
